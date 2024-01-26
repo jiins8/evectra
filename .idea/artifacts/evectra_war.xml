@@ -1,0 +1,14 @@
+<component name="ArtifactManager">
+  <artifact type="war" name="evectra:war">
+    <output-path>$PROJECT_DIR$/target</output-path>
+    <properties id="maven-jee-properties">
+      <options>
+        <module>evectra</module>
+        <packaging>war</packaging>
+      </options>
+    </properties>
+    <root id="archive" name="evectra-1.0-SNAPSHOT.war">
+      <element id="artifact" artifact-name="evectra:war exploded" />
+    </root>
+  </artifact>
+</component>
