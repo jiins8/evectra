@@ -4,24 +4,48 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.awt.*;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.ProtocolException;
 import java.net.URL;
 import java.sql.*;
 import java.util.Collections;
+import java.util.Scanner;
 
 public class Main {
 
     public static void main(String[] args) throws MalformedURLException {
-        realizarGET();
+        Scanner sc = new Scanner(System.in);
+        menu();
+        int option = sc.nextInt();
+        while (option != 0) {
+            switch (option) {
+                case 1:
+                    realizarGET();
+                    break;
+                case 2:
+                    addContact(sc);
+                    break;
+                case 3:
+            }
+            menu();
+            option = sc.nextInt();
+        }
     }
 
+    public static void menu() {
+        System.out.println("Choose your options: " + "\n" +
+                "1. Import contatacts to DB\n" +
+                "2. Create new contact\n" +
+                "0. Done");
+    }
 
     public static Connection connectionSQLite() {
         Connection connection = null;
@@ -37,59 +61,58 @@ public class Main {
         return connection;
     }
 
-    /*
-        public static void realizarGET() {
-            try {
-                // URL de la API del CRM para obtener la lista de contactos
-                String apiUrl = "https://api.clientify.net/v1/contacts/";
+    public static void realizarPOST(String apiUrl, String jsonInputString){
+        try {
+            // Crea una URL y establece la conexión
+            URL url = new URL(apiUrl);
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
 
-                // Crea una URL y establece la conexión
-                URL url = new URL(apiUrl);
-                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            // Configura la conexión para el método POST
+            connection.setRequestMethod("POST");
+            connection.setRequestProperty("Content-Type", "application/json");
+            connection.setRequestProperty("Authorization", "Token c5b6325daa345e3c6d50c57bed7d52f3633a198b");
+            connection.setDoOutput(true);
 
-                // Configura el método de la solicitud (GET)
-                connection.setRequestMethod("GET");
+            // Envia los datos del nuevo contacto en el cuerpo de la solicitud
+            try (OutputStream os = connection.getOutputStream()) {
+                byte[] input = jsonInputString.getBytes("utf-8");
+                os.write(input, 0, input.length);
+            }
 
-                // Establece las cabeceras de la solicitud si es necesario (por ejemplo, autenticación)
-                connection.setRequestProperty("Authorization", "Token c5b6325daa345e3c6d50c57bed7d52f3633a198b");
+            // Obtiene la respuesta del servidor
+            int responseCode = connection.getResponseCode();
 
-                // Obtiene la respuesta del servidor
-                int responseCode = connection.getResponseCode();
+            // Lee la respuesta del servidor
+            if (responseCode == HttpURLConnection.HTTP_OK || responseCode == HttpURLConnection.HTTP_CREATED) {
+                BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+                String inputLine;
+                StringBuilder response = new StringBuilder();
 
-                // Lee la respuesta del servidor
-                if (responseCode == HttpURLConnection.HTTP_OK) {
-                    BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-                    String inputLine;
-                    StringBuffer response = new StringBuffer();
-
-                    while ((inputLine = in.readLine()) != null) {
-                        response.append(inputLine);
-                    }
-
-                    in.close();
-
-                    // Formatea la respuesta JSON
-                    ObjectMapper objectMapper = new ObjectMapper();
-                    JsonNode jsonNode = objectMapper.readTree(response.toString());
-                    String prettyJson = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(jsonNode);
-
-                    // Imprime la respuesta formateada
-                    System.out.println("Respuesta del servidor:\n" + prettyJson);
-                    insertarContactosEnDB(jsonNode, connectionSQLite());
-                    connection.disconnect();
-                } else {
-                    System.out.println("Error al realizar la solicitud. Código de respuesta: " + responseCode);
+                while ((inputLine = in.readLine()) != null) {
+                    response.append(inputLine);
                 }
 
-                // Cierra la conexión
-                connection.disconnect();
+                in.close();
 
-            } catch (Exception e) {
-                e.printStackTrace();
+                System.out.println("Contact added to Clientify successfully.");
+            } else {
+                System.out.println("Error adding contact to Clientify. Response code: " + responseCode);
             }
-        }
+            connection.disconnect();
 
-     */
+        } catch (MalformedURLException e) {
+            e.printStackTrace();
+            System.out.println("Error: Malformed URL - " + e.getMessage());
+        } catch (ProtocolException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.out.println("Error while connecting to Clientify API.");
+        }
+    }
+
+
+
     public static void realizarGET() throws MalformedURLException {
         try {
             String apiUrl = "https://api.clientify.net/v1/contacts/";
@@ -136,9 +159,14 @@ public class Main {
                 } else {
                     System.out.println("Error al realizar la solicitud. Código de respuesta: " + responseCode);
                     break;
-                } System.out.println("Contactos insertados en la base de datos correctamente.");
-
+                }
+                System.out.println("Insertando contactos en la base de datos");
             }
+            System.out.println("Contactos insertados en la base de datos correctamente.");
+
+        } catch (MalformedURLException e) {
+            e.printStackTrace();
+            System.out.println("Error: Malformed URL - " + e.getMessage());
         } catch (ProtocolException e) {
             e.printStackTrace();
         } catch (JsonMappingException e) {
@@ -150,7 +178,6 @@ public class Main {
             System.out.println("Error al abrir la conexión.");
         }
     }
-
 
 
     public static void insertarContactosEnDB(JsonNode jsonNode, Connection connection) {
@@ -236,4 +263,69 @@ public class Main {
         }
     }
 
+    public static void addContact(Scanner sc) {
+        System.out.println("Enter first name");
+        String firstName = sc.next();
+
+        System.out.println("Eneter last name");
+        String lastName = sc.next();
+
+        System.out.println("Enter title:");
+        String title = sc.next();
+
+        System.out.println("Enter company name:");
+        String companyName = sc.next();
+
+        System.out.println("Enter phone number:");
+        String phoneNumber = sc.next();
+
+        System.out.println("Enter email:");
+        String email = sc.next();
+
+        System.out.println("Enter country:");
+        String country = sc.next();
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        ObjectNode jsonNode = objectMapper.createObjectNode();
+        jsonNode.put("first_name", firstName);
+        jsonNode.put("last_name", lastName);
+        jsonNode.put("title", title);
+        jsonNode.put("company", companyName);
+        jsonNode.put("phone", phoneNumber);
+        jsonNode.put("email", email);
+        jsonNode.put("country", country);
+        String jsonInputString;
+        try {
+            jsonInputString = objectMapper.writeValueAsString(jsonNode);
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+            System.out.println("Error converting JSON to string.");
+            return;
+        }
+        realizarPOST("https://api.clientify.net/v1/contacts/", jsonInputString);
+
+        try (Connection connection = connectionSQLite()) {
+            String sql = "INSERT INTO contactos (first_name, last_name, title, company_name, phone, email, country, created) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)";
+            try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
+                preparedStatement.setString(1, firstName);
+                preparedStatement.setString(2, lastName);
+                preparedStatement.setString(3, title);
+                preparedStatement.setString(4, companyName);
+                preparedStatement.setString(5, phoneNumber);
+                preparedStatement.setString(6, email);
+                preparedStatement.setString(7, country);
+
+                int rowsAffected = preparedStatement.executeUpdate();
+
+                if (rowsAffected > 0) {
+                    System.out.println("Contact added successfully.");
+                } else {
+                    System.out.println("Failed to add contact to the local database.");
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            System.out.println("Error while connecting to the local database.");
+        }
+    }
 }
